@@ -11,67 +11,72 @@ require('dotenv').config();
 const Topic = require("../../models/topicModel");
 const { sign } = require("jsonwebtoken");
 
-
-
-
-router.post("/createTopic", async function(req, res, next) {
-    try{
+router.post("/createTopic", async function (req, res, next) {
+    try {
         const {
-            token,
             topicTitle,
             bodyOfContent
-            } = req.body;
+        } = req.body;
 
-            if (token) {
-            const decodeToken= jwt.verify(token, process.env.JWT_SECRET);
-            await topicModel.create({decodeToken});
-            await topicModel.findOneAndUpdate({topicTitle,bodyOfContent})
-    
-            res.status(200).json({
-                success: true,
-                message: "topic created!",
-            })
-        }
-        } catch (error) {
-            next(error)
-        }
-    })
+        const decodeToken = req.decode;
+        console.log(JSON.stringify({decodeToken}));
+        await topicModel.create({ user: decodeToken.userid, topicTitle, bodyOfContent });
 
-    router.post("/:id/likeTopic", async function (req, res, next) {
-        try{
-            const {
-                token
-                } = req.body;
+        res.status(200).json({
+            success: true,
+            message: "topic created!",
+        })
 
-                if (token) {
-                    const decodeToken= jwt.verify(token, process.env.JWT_SECRET);
-                    const user = await Topic.findByIdAndUpdate(req.params.id)
-                if(user.likes.includes(decodeToken.userid)){
-                    await topicModel.findOneAndUpdate({ $push: {likes: decodeToken.userid}})
-                    res.status(200).json("topic has been liked")
-                }
-                }
-            
-        } catch (error) {
-            next(error)
-        }
-    })
-    
-            
-
-        
-    router.post("/:id/unlikeTopic", async function (req, res, next) {
-        try{
-            const user = await Topic.findByIdAndUpdate(req.params.id)
-            if(user.likes.includes(req.body.id)){
-                await topicModel.findOneAndUpdate({ $pull: {likes: req.body.id}})
-                res.status(200).json("topic has been unliked")
-            }
-        
     } catch (error) {
         next(error)
     }
 })
 
+router.get("/", async function(req, res, next) {
+    try {
+        const getTopic = await topicModel.find().populate("user");
+
+        res.status(200).json({
+            success: true,
+            data: getTopic,
+            message: "data has been retrieved successfully!"
+        })
+    } catch (error) {
+        next(error)
+    }
+})
+
+router.post("/:id/likeTopic", async function (req, res, next) {
+    try {
+        const {
+            token
+        } = req.body;
+
+        if (token) {
+            const decodeToken = jwt.verify(token, process.env.JWT_SECRET);
+            const user = await Topic.findByIdAndUpdate(req.params.id)
+            if (user.likes.includes(decodeToken.userid)) {
+                await topicModel.findOneAndUpdate({ $push: { likes: decodeToken.userid } })
+                res.status(200).json("topic has been liked")
+            }
+        }
+
+    } catch (error) {
+        next(error)
+    }
+})
+
+router.post("/:id/unlikeTopic", async function (req, res, next) {
+    try {
+        const user = await Topic.findByIdAndUpdate(req.params.id)
+        if (user.likes.includes(req.body.id)) {
+            await topicModel.findOneAndUpdate({ $pull: { likes: req.body.id } })
+            res.status(200).json("topic has been unliked")
+        }
+
+    } catch (error) {
+        next(error)
+    }
+})
 
 module.exports = router;

@@ -1,7 +1,7 @@
 const express = require ("express");
 const app = express();
 const mongoose = require ("mongoose");
-const {version} = require("../package.json");
+const {version} = require("./package.json");
 
 const APIroutes = require("./routes");
 
