@@ -19,7 +19,7 @@ router.post("/createTopic", async function (req, res, next) {
         } = req.body;
 
         const decodeToken = req.decode;
-        console.log(JSON.stringify({decodeToken}));
+        console.log(JSON.stringify({ decodeToken }));
         await topicModel.create({ user: decodeToken.userid, topicTitle, bodyOfContent });
 
         res.status(200).json({
@@ -32,7 +32,7 @@ router.post("/createTopic", async function (req, res, next) {
     }
 })
 
-router.get("/", async function(req, res, next) {
+router.get("/", async function (req, res, next) {
     try {
         const getTopic = await topicModel.find().populate("user");
 
@@ -54,10 +54,15 @@ router.post("/:id/likeTopic", async function (req, res, next) {
 
         if (token) {
             const decodeToken = jwt.verify(token, process.env.JWT_SECRET);
-            const user = await Topic.findByIdAndUpdate(req.params.id)
-            if (user.likes.includes(decodeToken.userid)) {
+            const topic = await Topic.findById(req.params.id)
+            if (!topic.likes.includes(decodeToken.userid)) {
                 await topicModel.findOneAndUpdate({ $push: { likes: decodeToken.userid } })
                 res.status(200).json("topic has been liked")
+            } else {
+                res.status(403).json({
+                    success: false,
+                    message: "topic already liked by this user before!"
+                })
             }
         }
 
