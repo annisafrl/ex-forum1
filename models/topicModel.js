@@ -22,7 +22,22 @@ const TopicSchema = new Schema({
     likes: {
         type: Array,
         require: true,
-    }
+    },
+    comment: [
+        {
+            postedBy: {
+                type : String,
+                require: true,
+            },
+            textComment: {
+                type : String,
+                require: true,
+            
+        
+            }
+        }
+    ]
+
 
 }, {
     timestamps: true

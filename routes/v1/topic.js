@@ -47,24 +47,23 @@ router.get("/", async function (req, res, next) {
 })
 
 router.post("/:id/likeTopic", async function (req, res, next) {
-    try {
-        const {
-            token
-        } = req.body;
 
-        if (token) {
-            const decodeToken = jwt.verify(token, process.env.JWT_SECRET);
+    try {
+            const decodeToken = req.decode;
             const topic = await Topic.findById(req.params.id)
             if (!topic.likes.includes(decodeToken.userid)) {
                 await topicModel.findOneAndUpdate({ $push: { likes: decodeToken.userid } })
-                res.status(200).json("topic has been liked")
+                res.status(200).json({
+                    success: true,
+                    message: "topic has been liked"
+                })
             } else {
                 res.status(403).json({
                     success: false,
                     message: "topic already liked by this user before!"
                 })
             }
-        }
+        
 
     } catch (error) {
         next(error)
@@ -73,11 +72,106 @@ router.post("/:id/likeTopic", async function (req, res, next) {
 
 router.post("/:id/unlikeTopic", async function (req, res, next) {
     try {
-        const user = await Topic.findByIdAndUpdate(req.params.id)
-        if (user.likes.includes(req.body.id)) {
-            await topicModel.findOneAndUpdate({ $pull: { likes: req.body.id } })
-            res.status(200).json("topic has been unliked")
+        const decodeToken = req.decode;
+        const topic = await Topic.findById(req.params.id)
+        if (topic.likes.includes(decodeToken.userid)) {
+            await topicModel.findOneAndUpdate({ $pull: { likes: decodeToken.userid } })
+            res.status(200).json({
+                success: true,
+                message: "topic has been unliked"
+            })
+        } else {
+            res.status(403).json({
+                success: false,
+                message: "topic already unliked before!"
+            })
         }
+    
+
+} catch (error) {
+    next(error)
+}
+})
+
+router.post("/:id/commentTopic", async function (req, res, next) {
+
+    try {
+            const {textComment} = req.body
+            const decodeToken = req.decode;
+            const topic = await Topic.findById(req.params.id)
+            if (!topic.comment.includes(decodeToken.userid)) {
+                await topicModel.findOneAndUpdate({ $push: {comment: { postedBy: decodeToken.userid , textComment}}})
+                res.status(200).json({
+                    success: true,
+                    message: "topic has been comment"
+                })
+            } else {
+                res.status(403).json({
+                    success: false,
+                    message: "failed to comment!"
+                })
+            }
+        
+
+    } catch (error) {
+        next(error)
+    }
+})
+
+router.post("/:id/uncommentTopic", async function (req, res, next) {
+
+    try {
+        const decodeToken = req.decode;
+        const topic = await Topic.findById(req.params.id)
+        if (!topic.comment.includes(decodeToken.userid)) {
+            await topicModel.findOneAndUpdate({ $pull: {comment: { postedBy: decodeToken.userid }}})
+            res.status(200).json({
+                success: true,
+                message: "topic has been uncomment"
+            })
+        } else {
+            res.status(403).json({
+                success: false,
+                message: "failed to uncomment!"
+            })
+        }
+    
+
+} catch (error) {
+    next(error)
+}
+})
+
+router.put("/updateTopic", async function (req, res, next) {
+    try {
+        const {
+            topicTitle,
+            bodyOfContent
+        } = req.body;
+
+        const decodeToken = req.decode;
+        await topicModel.findOneAndUpdate({user: decodeToken.userid,topicTitle, bodyOfContent });
+
+        res.status(200).json({
+            success: true,
+            message: "topic has been update!",
+        })
+
+    } catch (error) {
+        next(error)
+    }
+})
+
+router.delete("/deleteTopic", async function (req, res, next) {
+    try {
+
+        const decodeToken = req.decode;
+        await topicModel.findOneAndDelete({user: decodeToken.userid});
+
+        res.status(200).json({
+            success: true,
+            message: "topic has been delete!",
+        })
 
     } catch (error) {
         next(error)
