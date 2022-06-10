@@ -26,14 +26,13 @@ const TopicSchema = new Schema({
     comment: [
         {
             postedBy: {
-                type : String,
-                require: true,
+                type: Schema.Types.ObjectId,
+                ref: 'users',
+                required: true
             },
             textComment: {
                 type : String,
                 require: true,
-            
-        
             }
         }
     ]
