@@ -2,6 +2,8 @@ const express = require ("express");
 const app = express();
 const mongoose = require ("mongoose");
 const {version} = require("./package.json");
+const { urlencoded, json } = require ('body-parser');
+const { uploader, cloudinaryConfig } = require ('./middlewares/cloudinary');
 
 const APIroutes = require("./routes");
 

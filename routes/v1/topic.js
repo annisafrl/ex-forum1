@@ -1,6 +1,5 @@
 const express = require("express");
 const userModel = require("../../models/userModel");
-const topicModel = require("../../models/topicModel");
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
@@ -10,17 +9,22 @@ const { decode } = require("jsonwebtoken");
 require('dotenv').config();
 const Topic = require("../../models/topicModel");
 const { sign } = require("jsonwebtoken");
+const mongoose = require("mongoose");
+const cloudinary = require("../../middlewares/cloudinary")
+const upload =  require("../../middlewares/multer");
 
 router.post("/createTopic", async function (req, res, next) {
     try {
         const {
             topicTitle,
-            bodyOfContent
+            bodyOfContent,
         } = req.body;
+        
 
         const decodeToken = req.decode;
+
         console.log(JSON.stringify({ decodeToken }));
-        await topicModel.create({ user: decodeToken.userid, topicTitle, bodyOfContent });
+        await Topic.create({ user: decodeToken.userid, topicTitle, bodyOfContent, });
 
         res.status(200).json({
             success: true,
@@ -34,7 +38,7 @@ router.post("/createTopic", async function (req, res, next) {
 
 router.get("/", async function (req, res, next) {
     try {
-        const getTopic = await topicModel.find().populate("user");
+        const getTopic = await Topic.find().populate("user");
 
         res.status(200).json({
             success: true,
@@ -52,7 +56,7 @@ router.post("/:id/likeTopic", async function (req, res, next) {
             const decodeToken = req.decode;
             const topic = await Topic.findById(req.params.id)
             if (!topic.likes.includes(decodeToken.userid)) {
-                await topicModel.findOneAndUpdate({ $push: { likes: decodeToken.userid } })
+                await Topic.findByIdAndUpdate(req.params.id,{ $push: { likes: decodeToken.userid } })
                 res.status(200).json({
                     success: true,
                     message: "topic has been liked"
@@ -75,7 +79,7 @@ router.post("/:id/unlikeTopic", async function (req, res, next) {
         const decodeToken = req.decode;
         const topic = await Topic.findById(req.params.id)
         if (topic.likes.includes(decodeToken.userid)) {
-            await topicModel.findOneAndUpdate({_id: req.params.id},{ $pull: { likes: decodeToken.userid } })
+            await Topic.findByIdAndUpdate(req.params.id,{ $pull: { likes: decodeToken.userid } })
             res.status(200).json({
                 success: true,
                 message: "topic has been unliked"
@@ -100,7 +104,7 @@ router.post("/:id/commentTopic", async function (req, res, next) {
             const decodeToken = req.decode;
             const topic = await Topic.findById(req.params.id)
             if (!topic.comment.includes(decodeToken.userid)) {
-                await topicModel.findByIdAndUpdate(req.params.id, { $push: {comment: { postedBy: decodeToken.userid , textComment}}})
+                await Topic.findByIdAndUpdate(req.params.id, { $push: {comment: { postedBy: decodeToken.userid , textComment}}})
                 res.status(200).json({
                     success: true,
                     message: "topic has been comment"
@@ -118,12 +122,15 @@ router.post("/:id/commentTopic", async function (req, res, next) {
     }
 })
 
-router.post("/:idTopic/:idComment/uncommentTopic", async function (req, res, next) {
+router.delete("/:idTopic/:idComment/deleteComment", async function (req, res, next) {
 
     try {
         const decodeToken = req.decode;
-        const topic = await Topic.findById(req.params.idTopic)
-        const currentComment = topic.comment.find(obj => obj._id === req.params.idComment);
+        const topic = await Topic.findById(req.params.idTopic).lean();
+        console.log(topic)
+        const currentComment = topic.comment.find(obj => obj._id.toString() === req.params.idComment);
+
+        console.log(currentComment)
 
         if(!currentComment) {
             res.status(404).json({
@@ -132,16 +139,16 @@ router.post("/:idTopic/:idComment/uncommentTopic", async function (req, res, nex
             })
             return;
         }
-        if (currentComment.postedBy === decodeToken.userid) {
-            await topicModel.findOneAndUpdate({ _id: req.params.idTopic,$pull: {comment: { _id: req.params.idComment }}})
+        if (currentComment.postedBy.toString() === decodeToken.userid) {
+            await Topic.findByIdAndUpdate(req.params.idTopic, {$pull: {comment: { _id: req.params.idComment }}})
             res.status(200).json({
                 success: true,
-                message: "topic has been uncomment"
+                message: "comment has been delete"
             })
         } else {
             res.status(403).json({
                 success: false,
-                message: "failed to uncomment!"
+                message: "you can't delete other's comment!"
             })
         }
     
@@ -151,7 +158,7 @@ router.post("/:idTopic/:idComment/uncommentTopic", async function (req, res, nex
 }
 })
 
-router.put("/updateTopic", async function (req, res, next) {
+router.put("/:idTopic/updateTopic", async function (req, res, next) {
     try {
         const {
             topicTitle,
@@ -159,7 +166,7 @@ router.put("/updateTopic", async function (req, res, next) {
         } = req.body;
 
         const decodeToken = req.decode;
-        await topicModel.findOneAndUpdate({user: decodeToken.userid,topicTitle, bodyOfContent });
+        await Topic.findByIdAndUpdate(req.params.idTopic, {user: decodeToken.userid,topicTitle, bodyOfContent });
 
         res.status(200).json({
             success: true,
@@ -171,11 +178,11 @@ router.put("/updateTopic", async function (req, res, next) {
     }
 })
 
-router.delete("/deleteTopic", async function (req, res, next) {
+router.delete("/:idTopic/deleteTopic", async function (req, res, next) {
     try {
 
         const decodeToken = req.decode;
-        await topicModel.findOneAndDelete({user: decodeToken.userid});
+        await Topic.findByIdAndDelete(req.params.idTopic,{user: decodeToken.userid});
 
         res.status(200).json({
             success: true,
@@ -187,4 +194,20 @@ router.delete("/deleteTopic", async function (req, res, next) {
     }
 })
 
+router.post("/:idTopic/uploadImage", upload.single('image'), async function (req, res, next) {
+    try {
+        const decodeToken = req.decode;
+        const result = await cloudinary.v2.uploader.upload(req.file.path)
+        await Topic.findByIdAndUpdate(req.params.idTopic,{user: decodeToken.userid, topicImages : result.secure_url});
+        
+        res.status(200).json({
+            success: true,
+            message: "image has been uploaded!",
+            result
+        })
+
+    } catch (error) {
+        next(error)
+    }
+})
 module.exports = router;

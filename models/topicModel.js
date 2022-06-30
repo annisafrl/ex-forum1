@@ -7,6 +7,10 @@ const TopicSchema = new Schema({
         ref: 'users',
         required: true
     },
+    topicImages: {
+        type: String,
+        require: true,
+    },
     topicTitle: {
         type: String,
         require: true,
