@@ -13,7 +13,7 @@ const mongoose = require("mongoose");
 const cloudinary = require("../../middlewares/cloudinary")
 const upload =  require("../../middlewares/multer");
 
-router.post("/createTopic", async function (req, res, next) {
+router.post("/createTopic", upload.single('image'), async function (req, res, next) {
     try {
         const {
             topicTitle,
@@ -24,11 +24,30 @@ router.post("/createTopic", async function (req, res, next) {
         const decodeToken = req.decode;
 
         console.log(JSON.stringify({ decodeToken }));
-        await Topic.create({ user: decodeToken.userid, topicTitle, bodyOfContent, });
+        const result = await cloudinary.v2.uploader.upload(req.file.path)
+        await Topic.create({ user: decodeToken.userid, topicTitle, bodyOfContent, topicImages : result.secure_url});
 
         res.status(200).json({
             success: true,
             message: "topic created!",
+            result
+        })
+
+    } catch (error) {
+        next(error)
+    }
+})
+
+router.post("/:idTopic/uploadImage", upload.single('image'), async function (req, res, next) {
+    try {
+        const decodeToken = req.decode;
+        const result = await cloudinary.v2.uploader.upload(req.file.path)
+        await Topic.findByIdAndUpdate(req.params.idTopic,{user: decodeToken.userid, topicImages : result.secure_url});
+        
+        res.status(200).json({
+            success: true,
+            message: "image has been uploaded!",
+            result
         })
 
     } catch (error) {
@@ -194,20 +213,5 @@ router.delete("/:idTopic/deleteTopic", async function (req, res, next) {
     }
 })
 
-router.post("/:idTopic/uploadImage", upload.single('image'), async function (req, res, next) {
-    try {
-        const decodeToken = req.decode;
-        const result = await cloudinary.v2.uploader.upload(req.file.path)
-        await Topic.findByIdAndUpdate(req.params.idTopic,{user: decodeToken.userid, topicImages : result.secure_url});
-        
-        res.status(200).json({
-            success: true,
-            message: "image has been uploaded!",
-            result
-        })
 
-    } catch (error) {
-        next(error)
-    }
-})
 module.exports = router;
